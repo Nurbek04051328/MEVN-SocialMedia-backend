@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import bcrypt from "bcrypt";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import { IUserDocument, IUserMethods } from '../types';
@@ -31,6 +31,18 @@ const userSchema = new mongoose.Schema<
         type: mongoose.Schema.Types.ObjectId,
         ref: "Post"
       }
+    ],
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
     ],
     password: {
       type: String,
