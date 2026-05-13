@@ -1,9 +1,14 @@
 import mongoose from 'mongoose';
 import bcrypt from "bcrypt";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
+import { IUserDocument, IUserMethods } from '../types';
 
 
-const userSchema = new mongoose.Schema (
+const userSchema = new mongoose.Schema<
+  IUserDocument, 
+  Model<IUserDocument>,
+  IUserMethods
+> (
   {
     username: {
       type: String,
@@ -31,13 +36,16 @@ const userSchema = new mongoose.Schema (
       type: String,
       required: true
     },
+    refreshToken: {
+      type: String
+    }
   },
   {
     timestamps: true,
   }
 );
 
-userSchema.pre("save", async function () {
+userSchema.pre<IUserDocument>("save", async function () {
   if(this.isModified("password")) return; 
   this.password = await bcrypt.hash(this.password, 10)
 });
@@ -78,4 +86,4 @@ userSchema.methods.generateRefreshToken = function () {
   )
 }
 
-export const User = mongoose.model("User", userSchema)
+export const User = mongoose.model<IUserDocument>("User", userSchema)

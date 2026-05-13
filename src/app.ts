@@ -13,7 +13,9 @@ app.use(cors({
 app.use(cookieParser());
 
 // Routes
-import testRoute from "./routes/test.route"
+import testRoute from "./routes/test.route";
+import userRoute from "./routes/user.route";
 app.use("/api/v1/test", testRoute);
+app.use("/api/v1/users", userRoute);
 
 export default app;
