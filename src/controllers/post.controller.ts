@@ -469,3 +469,128 @@ export const getUserPosts = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const updatePostContent = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    const { postId } = req.params;
+    const { content } = req.body;
+
+    if (!content || content === "") {
+      throw new ApiError(400, "content is required and it cannot be empty");
+    }
+
+    // console.log({ postId });
+
+    if (!userId) {
+      throw new ApiError(404, "user id not found");
+    }
+
+    if (!postId) {
+      throw new ApiError(404, "post id not found");
+    }
+
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      throw new ApiError(404, "post not found");
+    }
+
+    // console.log(post.owner);
+
+    if (!post.owner.equals(userId)) {
+      throw new ApiError(401, "you are unauthorized to perform this action");
+    }
+
+    post.content = content;
+    post.save({ validateBeforeSave: false });
+
+    // await redisClient.del("home:posts");
+    // await redisClient.del(`user:posts:${req.user?.username}`);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, post, "post updated successfully"));
+  } catch (error: unknown) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+};
+
+export const deletePost = async (req: Request, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user?._id;
+
+    if (!postId) {
+      throw new ApiError(404, "post id not found");
+    }
+
+    if (!userId) {
+      throw new ApiError(404, "user id not found");
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      throw new ApiError(404, "Post not found");
+    }
+
+    console.log({ postToBeDeleted: post });
+
+    console.log(post.video);
+    console.log(post.image);
+
+    if (post.video?.public_id) {
+      await removeFromCloudinary(post.video.public_id, "video");
+    }
+
+    if (post.image?.public_id) {
+      await removeFromCloudinary(post.image.public_id, "image");
+    }
+
+    const deletedPost = await Post.findByIdAndDelete({
+      _id: postId,
+      owner: userId,
+    });
+
+    if (!deletedPost) {
+      throw new ApiError(401, "you are not authorized to perform this action");
+    }
+
+    // await redisClient.del("home:posts");
+    // await redisClient.del(`user:posts:${req.user?.username}`);
+
+    return res
+      .status(203)
+      .json(new ApiResponse(203, null, "post deleted successfully"));
+  } catch (error: unknown) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+};
