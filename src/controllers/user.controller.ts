@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
-import { uploadToCloudinary } from "../utils/cloudinary";
+import { removeFromCloudinary, uploadToCloudinary } from "../utils/cloudinary";
 import { ApiResponse } from "../utils/ApiResponse";
 import { User } from "../models/user.model";
 import { AccessTokenPayload } from "../types";
 import jwt from "jsonwebtoken";
+import fs from 'fs'
 
 export const registerUser =async (req: Request, res: Response) => {
   try {
@@ -437,6 +438,61 @@ export const updateBio = async (req: Request, res: Response) => {
     return res
       .status(200)
       .json(new ApiResponse(200, null, "bio updated successfull"));
+  } catch (error: unknown) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+};
+
+export const updateProfileImage = async (req: Request, res: Response) => {
+  try {
+    let profileImagePath = req.file?.path;
+    if (!profileImagePath) {
+      throw new ApiError(400, "profile image is required");
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      fs.unlinkSync(profileImagePath);
+      throw new ApiError(500, "no user id found");
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      fs.unlinkSync(profileImagePath);
+      throw new ApiError(404, "user not found");
+    }
+
+    if (!user.profileImage) {
+      const profileImage = await uploadToCloudinary(profileImagePath);
+      user.profileImage = profileImage?.url;
+      await user.save({ validateBeforeSave: false });
+      return res
+        .status(200)
+        .json(new ApiResponse(200, null, "profile image added successfully"));
+    } else {
+      const oldProfileImageUrl = user.profileImage;
+      await removeFromCloudinary(oldProfileImageUrl, "image");
+      const newProfileImage = await uploadToCloudinary(profileImagePath);
+      user.profileImage = newProfileImage?.url;
+      await user.save({ validateBeforeSave: false });
+      return res
+        .status(201)
+        .json(new ApiResponse(200, null, "profile image updated successfully"));
+    }
   } catch (error: unknown) {
     console.error("Error: ", error);
 

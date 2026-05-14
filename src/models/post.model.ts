@@ -1,36 +1,53 @@
-import mongoose from 'mongoose';
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken"
+import mongoose, { Model } from "mongoose";
+import { IPostDocument } from "../types/index.js";
 
-const postSchema = new mongoose.Schema (
+const mediaSchema = new mongoose.Schema(
   {
-    contect: {
+    url: { type: String, required: true },
+    public_id: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const postSchema = new mongoose.Schema<IPostDocument, Model<IPostDocument>>(
+  {
+    content: {
       type: String,
       required: true,
     },
     image: {
-      type: String,
+      type: mediaSchema,
+      required: false,
+    },
+    video: {
+      type: mediaSchema,
+      required: false,
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      ref: "User",
+      required: true,
     },
-    bio: {
-      type: String,
-    },
-    posts: [
+    comments: [
       {
-        type: mongoose.Schema.Types.ObjectId
-      }
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+      },
     ],
-    password: {
-      type: String,
-      required: true
-    },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-export const Post = mongoose.model("Post", postSchema)
+postSchema.index({
+  content: "text",
+});
+
+export const Post = mongoose.model<IPostDocument>("Post", postSchema);
