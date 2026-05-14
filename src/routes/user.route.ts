@@ -11,7 +11,9 @@ import {
   addBio,
   updateBio,
   updateProfileImage,
-  getUserProfileData
+  getUserProfileData,
+  followUser,
+  unfollowUser
 } from '../controllers/user.controller';
 
 const router = express.Router();
@@ -28,7 +30,9 @@ router.route("/add-bio").post(verifyJWT, addBio);
 router.route("/update-bio").patch(verifyJWT, updateBio);
 router.route("/update-profile-image")
   .patch(verifyJWT, upload.single("profileImage"), updateProfileImage);
-  
-router.route("/get-user-profile-data/:username").get(verifyJWT, getUserProfileData)
+
+router.route("/get-user-profile-data/:username").get(verifyJWT, getUserProfileData);
+router.route("/follow/:username").post(verifyJWT, followUser);
+router.route("/unfollow/:username").post(verifyJWT, unfollowUser);
 
 export default router;
