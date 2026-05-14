@@ -10,7 +10,8 @@ import {
   refreshAccessToken, 
   addBio,
   updateBio,
-  updateProfileImage
+  updateProfileImage,
+  getUserProfileData
 } from '../controllers/user.controller';
 
 const router = express.Router();
@@ -25,6 +26,9 @@ router.route("/current-user").get(verifyJWT, getCurrentUser);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 router.route("/add-bio").post(verifyJWT, addBio);
 router.route("/update-bio").patch(verifyJWT, updateBio);
-router.route("/update-profile-image").patch(verifyJWT, upload.single("profileImage"), updateProfileImage);
+router.route("/update-profile-image")
+  .patch(verifyJWT, upload.single("profileImage"), updateProfileImage);
+  
+router.route("/get-user-profile-data/:username").get(verifyJWT, getUserProfileData)
 
 export default router;

@@ -4,6 +4,7 @@ import { upload } from "../middlewares/multer.middleware.js";
 import {
   createPost,
   getAllPostsForHome,
+  getUserPosts,
   // getUserPosts,
   // getUserPostById,
   // updatePostContent,
@@ -24,7 +25,7 @@ router.route("/create-post").post(
 );
 
 router.route("/all-posts").get(verifyJWT, getAllPostsForHome);
-// router.route("/user-posts/:username").get(verifyJWT, getUserPosts);
+router.route("/user-posts/:username").get(verifyJWT, getUserPosts);
 // router.route("/:postId").get(verifyJWT, getPostById);
 // router.route("/search/post").get(verifyJWT, searchPosts);
 // router.route("/user/:postId").get(verifyJWT, getUserPostById);

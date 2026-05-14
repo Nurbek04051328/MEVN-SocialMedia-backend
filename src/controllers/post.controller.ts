@@ -8,7 +8,7 @@ import {
 import { User } from "../models/user.model.js";
 import { Post } from "../models/post.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-// import sanitizeHtml from "sanitize-html";
+import sanitizeHtml from "sanitize-html";
 // import mongoose from "mongoose";
 // import { io } from "../index.js";
 // import { redisClient } from "../config/redis.js";
@@ -159,7 +159,7 @@ export const getAllPostsForHome = async (req: Request, res: Response) => {
     if (!userId) {
     }
 
-    const cacheKey = "home:posts";
+    // const cacheKey = "home:posts";
 
     // const cachedData = await redisClient.get(cacheKey);
 
@@ -278,13 +278,179 @@ export const getAllPostsForHome = async (req: Request, res: Response) => {
 
     // console.log(posts);
 
-    await redisClient.set(cacheKey, JSON.stringify(posts), {
-      EX: 60,
-    });
+    // await redisClient.set(cacheKey, JSON.stringify(posts), {
+    //   EX: 60,
+    // });
 
     return res
       .status(200)
       .json(new ApiResponse(200, posts, "posts fetched successfully"));
+  } catch (error: unknown) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+};
+
+export const getUserPosts = async (req: Request, res: Response) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      throw new ApiError(404, "username not found");
+    }
+
+    // const cacheKey = `user:posts:${username}`;
+
+    // const cachedData = await redisClient.get(cacheKey);
+
+    // if (cachedData) {
+    //   return res
+    //     .status(200)
+    //     .json(
+    //       new ApiResponse(
+    //         200,
+    //         JSON.parse(cachedData),
+    //         "user posts fetched from cache"
+    //       )
+    //     );
+    // }
+
+    const posts = await Post.aggregate([
+      //Join owner
+      {
+        $lookup: {
+          from: "users",
+          localField: "owner",
+          foreignField: "_id",
+          as: "owner",
+        },
+      },
+      { $unwind: "$owner" },
+
+      //Match by username
+      {
+        $match: {
+          "owner.username": username,
+        },
+      },
+
+      //Join comments
+      {
+        $lookup: {
+          from: "comments",
+          localField: "comments",
+          foreignField: "_id",
+          as: "comments",
+        },
+      },
+
+      //Join comment users
+      {
+        $lookup: {
+          from: "users",
+          localField: "comments.commentedBy",
+          foreignField: "_id",
+          as: "commentUsers",
+        },
+      },
+
+      // Shape comments
+      {
+        $addFields: {
+          comments: {
+            $map: {
+              input: "$comments",
+              as: "comment",
+              in: {
+                _id: "$$comment._id",
+                comment: "$$comment.comment",
+                createdAt: "$$comment.createdAt",
+                commentedBy: {
+                  $let: {
+                    vars: {
+                      user: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: "$commentUsers",
+                              as: "user",
+                              cond: {
+                                $eq: ["$$user._id", "$$comment.commentedBy"],
+                              },
+                            },
+                          },
+                          0,
+                        ],
+                      },
+                    },
+                    in: {
+                      _id: "$$user._id",
+                      username: "$$user.username",
+                      profileImage: "$$user.profileImage",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      // ensure likes always exists + counts
+      {
+        $addFields: {
+          likes: { $ifNull: ["$likes", []] },
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+          likeCount: { $size: "$likes" },
+        },
+      },
+
+      // Final projection
+      {
+        $project: {
+          content: 1,
+          image: 1,
+          video: 1,
+          createdAt: 1,
+          commentCount: 1,
+          likeCount: 1,
+          likes: 1,
+          comments: 1,
+          owner: {
+            _id: "$owner._id",
+            username: "$owner.username",
+            profileImage: "$owner.profileImage",
+          },
+        },
+      },
+
+      { $sort: { createdAt: -1 } },
+    ]);
+
+    // await redisClient.set(cacheKey, JSON.stringify(posts), {
+    //   EX: 60,
+    // });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, posts, "user posts fetched successfully"));
   } catch (error: unknown) {
     console.error("Error: ", error);
 
